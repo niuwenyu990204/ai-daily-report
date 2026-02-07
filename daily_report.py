@@ -152,33 +152,43 @@ def generate_smart_report(github_data, hn_data, hf_data):
     
     Hugging Face Trending:
     {str(hf_data)}
+
+    Crypto News (Latest 24h):
+    {str(crypto_data)}
+
+    Macroeconomic News (Latest 24h):
+    {str(macro_data)}
     """
     
     system_prompt = """
-    你是一名 AI 行业分析师。请基于最近 24–48 小时内的公开信息变化，将内容整理为一份 **中文 AI 每日日报**，面向关注前沿工具与模型的开发者和创业者。
+    你是一名资深的 **全栈科技与金融分析师**。请基于最近 24–48 小时内的公开信息，整理一份高质量的 **《AI & 金融前沿日报》**。
+    受众为：关注前沿 AI 工具、加密货币市场及宏观经济的开发者、创业者和投资者。
 
     **信息来源与板块结构**
-    请将提供的数据按以下三大板块重组：
-    1.  **GitHub 热门项目**（以近期 star 增长、趋势榜为主要参考）
-    2.  **Hacker News 热议**（以讨论热度、观点新颖性为主）
-    3.  **Hugging Face 热门模型**（以下载量、点赞、社区关注度为主）
+    请将提供的数据按以下五大板块重组（如果某板块无数据，可跳过）：
+    1.  **GitHub 热门 AI 项目**（筛选最具创新性的开源项目）
+    2.  **Hacker News AI 热议**（筛选最有深度的技术讨论）
+    3.  **Hugging Face 热门模型**（筛选最实用的新模型）
+    4.  **币圈动态 (Crypto Watch)**（筛选对比特币、以太坊或 Web3 行业有重大影响的新闻）
+    5.  **宏观经济 (Macro Insights)**（筛选可能影响科技股或风险资产的全球经济/政策新闻）
 
     **输出要求**
-    1.  **HTML 表格格式：** 每个板块请输出一个紧凑的 HTML 表格（`<table>`），模拟 Markdown 表格的视觉效果。
-    2.  **Top 5：** 每个表格仅保留最热门的 **前 5 项**。
+    1.  **HTML 表格格式：** 每个板块输出一个紧凑的 HTML 表格（`<table>`）。
+    2.  **Top 5：** 每个表格仅保留 **Top 3-5** 最具价值的条目。
     3.  **表格列名固定为：**
         *   **名称 / 链接** (Name/Link)
-        *   **分类** (Category: 工具 / 程序 / 新闻)
-        *   **大白话功能** (Function: 直接说它能解决什么问题，适合在什么场景用，避免说明书式表达)
-        *   **使用门槛** (Threshold: 如：直接访问 / 需编程基础 / 需 12G 显存 / 本地部署)
-    4.  **写作风格：** 翻译必须地道自然，禁止出现“这是一个用于……的框架”等机翻表达。优先保留对趋势判断有价值的信息，过滤噱头、重复项目和边缘新闻。
+        *   **分类** (Category: 工具/新闻/政策/行情)
+        *   **核心解读** (Analysis: 用大白话解释它为什么重要，对未来的潜在影响)
+        *   **关注指数** (Impact: ⭐⭐⭐ - ⭐⭐⭐⭐⭐)
+    4.  **写作风格：** 专业、犀利、简练。拒绝通稿式废话，直击要害。
 
     **总结要求**
-    在所有表格之后，用 **一句话** 点出本期 **「最不容错过」** 的一项。
-    *   推荐理由需明确说明：它为什么现在值得关注，以及可能带来的实际影响（效率、成本、能力边界等）。
+    在所有表格之后，增加 **「今日风向标」** 栏目：
+    *   **一句话总结：** 用一句话概括今天科技与金融市场的整体情绪（如：AI 应用层爆发，但宏观政策收紧导致币圈承压）。
+    *   **最不容错过：** 挑选 **唯一一项** 今日最重要的信息，并给出深度推荐理由。
 
     **输出格式**
-    *   只输出 HTML 的 `<body>` 内部的核心内容（不需要 `<html>`, `<head>` 标签）。
+    *   只输出 HTML 的 `<body>` 内部的核心内容。
     *   使用简单的 CSS class 以便渲染（如 `table`, `th`, `td`）。
     """
     
@@ -191,7 +201,7 @@ def generate_smart_report(github_data, hn_data, hf_data):
                 {"role": "user", "content": f"这是今天的原始数据，请开始生成：\n{data_summary}"}
             ],
             temperature=0.7,
-            max_tokens=2500
+            max_tokens=3000
         )
         content = response.choices[0].message.content
         
@@ -200,25 +210,25 @@ def generate_smart_report(github_data, hn_data, hf_data):
         <html>
         <head>
             <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }}
                 h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 20px; }}
-                h2 {{ margin-top: 30px; color: #0366d6; border-left: 5px solid #0366d6; padding-left: 10px; }}
+                h2 {{ margin-top: 30px; color: #0366d6; border-left: 5px solid #0366d6; padding-left: 10px; font-size: 1.4em; }}
                 table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; }}
-                th, td {{ padding: 10px; border: 1px solid #e1e4e8; text-align: left; }}
-                th {{ background-color: #f6f8fa; font-weight: 600; }}
+                th, td {{ padding: 12px; border: 1px solid #e1e4e8; text-align: left; vertical-align: top; }}
+                th {{ background-color: #f6f8fa; font-weight: 600; color: #24292e; }}
                 tr:nth-child(even) {{ background-color: #f8f9fa; }}
                 a {{ color: #0366d6; text-decoration: none; font-weight: bold; }}
                 .tag {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: normal; background-color: #e1ecf4; color: #0366d6; }}
-                .highlight-box {{ background-color: #fff8c5; border: 1px solid #d3c875; padding: 15px; border-radius: 6px; margin-top: 30px; }}
-                .highlight-title {{ font-weight: bold; color: #735c0f; margin-bottom: 5px; font-size: 1.1em; }}
+                .highlight-box {{ background-color: #fff8c5; border: 1px solid #d3c875; padding: 20px; border-radius: 6px; margin-top: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
+                .highlight-title {{ font-weight: bold; color: #735c0f; margin-bottom: 10px; font-size: 1.2em; border-bottom: 1px solid #eadd86; padding-bottom: 5px; }}
                 .footer {{ text-align: center; font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }}
             </style>
         </head>
         <body>
-            <h1>🤖 AI 每日简报 ({datetime.date.today()})</h1>
+            <h1>🚀 AI & 金融前沿日报 ({datetime.date.today()})</h1>
             {content}
             <div class="footer">
-                由 AI 自动生成 • {datetime.date.today()}
+                由 AI 自动生成 • 数据来源：GitHub, Hacker News, Hugging Face, CoinDesk, CNBC
             </div>
         </body>
         </html>
@@ -350,10 +360,12 @@ def main():
     github_data = fetch_github_trending()
     hn_data = fetch_hacker_news_ai()
     hf_data = fetch_huggingface_trending()
+    crypto_data = fetch_crypto_news()
+    macro_data = fetch_macro_news()
     
     # 2. 生成报告
     # 尝试使用 LLM 生成智能报告，如果失败或未配置 Key 会自动回退
-    html = generate_smart_report(github_data, hn_data, hf_data)
+    html = generate_smart_report(github_data, hn_data, hf_data, crypto_data, macro_data)
     
     # 3. 发送邮件
     send_email(html)
