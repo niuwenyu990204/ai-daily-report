@@ -15,6 +15,11 @@ MAIL_USER = os.environ.get("MAIL_USERNAME", "")       # 你的邮箱地址
 MAIL_PASS = os.environ.get("MAIL_PASSWORD", "")       # 你的邮箱授权码
 MAIL_RECEIVER = os.environ.get("MAIL_RECIPIENT", "")  # 接收报告的邮箱
 
+# LLM 配置
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com") # 默认 DeepSeek
+LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
+
 def fetch_github_trending():
     """获取 GitHub 上近期热门的 AI 相关项目"""
     print("正在获取 GitHub 热门项目...")
@@ -123,6 +128,97 @@ def fetch_huggingface_trending():
         print(f"Hugging Face 获取失败: {e}")
         return []
 
+from openai import OpenAI
+
+def generate_smart_report(github_data, hn_data, hf_data):
+    """使用 LLM 生成智能总结报告"""
+    if not LLM_API_KEY:
+        print("⚠️ 未配置 LLM_API_KEY，回退到普通模板模式")
+        return generate_html(github_data, hn_data, hf_data)
+        
+    print("🤖 正在调用 LLM 进行智能总结与分析...")
+    
+    # 构造 Prompt
+    data_summary = f"""
+    GitHub Trending:
+    {str(github_data)}
+    
+    Hacker News AI Topics:
+    {str(hn_data)}
+    
+    Hugging Face Trending:
+    {str(hf_data)}
+    """
+    
+    system_prompt = """
+    你是一个专业的 AI 科技媒体编辑。请根据提供的原始数据，写一份高质量的《AI 每日简报》。
+    
+    要求如下：
+    1.  **语言风格：** 采用全中文口语化翻译，避免生硬的机器翻译痕迹，力求自然流畅。
+    2.  **内容筛选：** 从提供的列表中筛选出最值得关注的 5-8 项，并按照其热度或重要性进行降序排列。
+    3.  **项目分类：** 必须为每个项目明确标注其类型：
+        *   **[开源程序]（需部署）：** 指需要用户自行下载代码、配置环境并部署才能使用的项目。
+        *   **[在线工具]（开箱即用）：** 指可以直接通过网页访问或下载客户端即可使用的项目。
+        *   **[行业新闻]：** 指与 AI 领域相关的最新动态、研究成果、政策发布等信息。
+    4.  **结构统一：** 每个项目或新闻条目都应遵循以下格式（直接输出 HTML 格式）：
+        
+        <div class="item">
+            <h3><a href="URL">项目名称</a> <span class="tag">[类型]</span></h3>
+            <p><strong>一句话简介：</strong>...</p>
+            <p><strong>核心价值：</strong>...</p>
+            <p><strong>使用门槛：</strong>...</p>
+        </div>
+
+    5.  **输出格式：** 
+        *   只输出 HTML 的 `<body>` 内部的核心内容（不需要 `<html>`, `<head>` 标签）。
+        *   使用简单的 CSS class (如 .item, .tag) 以便渲染。
+    """
+    
+    try:
+        client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL)
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"这是今天的原始数据，请开始生成：\n{data_summary}"}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        content = response.choices[0].message.content
+        
+        # 包装成完整的 HTML
+        full_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; }}
+                h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 20px; }}
+                .item {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef; }}
+                .item h3 {{ margin-top: 0; color: #0366d6; }}
+                .item a {{ color: #0366d6; text-decoration: none; }}
+                .tag {{ background: #e1ecf4; color: #0366d6; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 10px; font-weight: normal; }}
+                p {{ margin: 8px 0; }}
+                strong {{ color: #495057; }}
+                .footer {{ text-align: center; font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <h1>🤖 AI 每日简报 ({datetime.date.today()})</h1>
+            {content}
+            <div class="footer">
+                由 AI 自动生成 • {datetime.date.today()}
+            </div>
+        </body>
+        </html>
+        """
+        return full_html
+        
+    except Exception as e:
+        print(f"❌ LLM 生成失败: {e}")
+        print("🔄 回退到普通模板模式...")
+        return generate_html(github_data, hn_data, hf_data)
+
 def generate_html(github_data, hn_data, hf_data):
     """生成 HTML 邮件内容"""
     template_str = """
@@ -230,7 +326,8 @@ def main():
     hf_data = fetch_huggingface_trending()
     
     # 2. 生成报告
-    html = generate_html(github_data, hn_data, hf_data)
+    # 尝试使用 LLM 生成智能报告，如果失败或未配置 Key 会自动回退
+    html = generate_smart_report(github_data, hn_data, hf_data)
     
     # 3. 发送邮件
     send_email(html)

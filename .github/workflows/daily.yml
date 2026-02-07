@@ -28,7 +28,10 @@ jobs:
         MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
         MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
         MAIL_RECIPIENT: ${{ secrets.MAIL_RECIPIENT }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 注入 Token 以提高 API 配额
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        LLM_API_KEY: ${{ secrets.LLM_API_KEY }}   # 用户配置的 LLM Key
+        LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }} # 可选：自定义 API 地址
+        LLM_MODEL: ${{ secrets.LLM_MODEL }}       # 可选：自定义模型名称
         MAIL_HOST: smtp.qq.com
         MAIL_PORT: 465
       run: python daily_report.py
