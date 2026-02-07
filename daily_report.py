@@ -17,8 +17,9 @@ MAIL_RECEIVER = os.environ.get("MAIL_RECIPIENT", "")  # 接收报告的邮箱
 
 # LLM 配置
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.deepseek.com") # 默认 DeepSeek
-LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
+# 使用 or 运算符处理空字符串的情况（GitHub Actions 可能会将未定义的 secret 设为空字符串）
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or "https://api.deepseek.com"
+LLM_MODEL = os.environ.get("LLM_MODEL") or "deepseek-chat"
 
 def fetch_github_trending():
     """获取 GitHub 上近期热门的 AI 相关项目"""
