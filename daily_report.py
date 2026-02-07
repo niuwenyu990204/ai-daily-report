@@ -131,13 +131,26 @@ def fetch_huggingface_trending():
         print(f"Hugging Face 获取失败: {e}")
         return []
 
+import calendar
+
 def fetch_rss_data(url, limit=5, hours=24):
-    """通用 RSS 获取函数，支持时间筛选"""
+    """通用 RSS 获取函数，支持时间筛选，使用 User-Agent 避免被拦截"""
     print(f"正在获取 RSS: {url} ...")
     try:
-        feed = feedparser.parse(url)
+        # 1. 使用 requests 获取内容，设置 User-Agent
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=15)
+        
+        if resp.status_code != 200:
+            print(f"RSS 请求失败: {resp.status_code}")
+            return []
+            
+        # 2. 解析内容
+        feed = feedparser.parse(resp.content)
         items = []
-        current_time = time.time()
+        current_time = time.time() # UTC 时间戳 (seconds since epoch)
         
         for entry in feed.entries:
             # 尝试获取发布时间
@@ -145,8 +158,10 @@ def fetch_rss_data(url, limit=5, hours=24):
             if not published_time:
                 continue
                 
-            # 转换为时间戳
-            entry_time = time.mktime(published_time)
+            # 转换为 UTC 时间戳
+            # feedparser 的 published_parsed 通常是 UTC 时间的 struct_time
+            # 使用 calendar.timegm 转换为时间戳
+            entry_time = calendar.timegm(published_time)
             
             # 筛选最近 N 小时
             if current_time - entry_time < hours * 3600:
@@ -159,7 +174,8 @@ def fetch_rss_data(url, limit=5, hours=24):
                 
             if len(items) >= limit:
                 break
-                
+        
+        print(f"成功获取 {len(items)} 条 RSS 数据 ({url})")        
         return items
     except Exception as e:
         print(f"RSS 获取失败 ({url}): {e}")
@@ -296,12 +312,12 @@ def generate_smart_report(github_data, hn_data, hf_data, crypto_data, macro_data
         """
         
         # 生成普通报告
-        normal_html = generate_html(github_data, hn_data, hf_data)
+        normal_html = generate_html(github_data, hn_data, hf_data, crypto_data, macro_data)
         
         # 将错误信息插入到 body 开始处
         return normal_html.replace("<body>", f"<body>{error_html}")
 
-def generate_html(github_data, hn_data, hf_data):
+def generate_html(github_data, hn_data, hf_data, crypto_data=None, macro_data=None):
     """生成 HTML 邮件内容"""
     template_str = """
     <html>
@@ -318,7 +334,7 @@ def generate_html(github_data, hn_data, hf_data):
     </head>
     <body>
         <div class="container">
-            <h1>🤖 AI 每日简报 ({{ date }})</h1>
+            <h1>🤖 AI & 金融每日简报 ({{ date }})</h1>
             
             <h2>🔥 GitHub 本周热门 AI 项目</h2>
             {% if github_data %}
@@ -358,6 +374,32 @@ def generate_html(github_data, hn_data, hf_data):
                 <p>获取失败或无数据。</p>
             {% endif %}
 
+            <h2>💰 币圈动态 (Crypto Watch)</h2>
+            {% if crypto_data %}
+                {% for item in crypto_data %}
+                <div class="item">
+                    <a href="{{ item.link }}">{{ item.title }}</a>
+                    <div class="meta">🕒 {{ item.published }}</div>
+                    <div style="font-size: 0.9em; color: #555;">{{ item.summary }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>暂无数据。</p>
+            {% endif %}
+
+            <h2>🌍 宏观经济 (Macro Insights)</h2>
+            {% if macro_data %}
+                {% for item in macro_data %}
+                <div class="item">
+                    <a href="{{ item.link }}">{{ item.title }}</a>
+                    <div class="meta">🕒 {{ item.published }}</div>
+                    <div style="font-size: 0.9em; color: #555;">{{ item.summary }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>暂无数据。</p>
+            {% endif %}
+
             <div class="footer">
                 此报告由 GitHub Actions 自动生成。<br>
                 {{ date }}
@@ -371,7 +413,9 @@ def generate_html(github_data, hn_data, hf_data):
         date=datetime.date.today().strftime("%Y-%m-%d"),
         github_data=github_data,
         hn_data=hn_data,
-        hf_data=hf_data
+        hf_data=hf_data,
+        crypto_data=crypto_data,
+        macro_data=macro_data
     )
 
 def send_email(html_content):
