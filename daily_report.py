@@ -112,7 +112,7 @@ def fetch_huggingface_trending():
     print("正在获取 Hugging Face 热门模型...")
     try:
         # Hugging Face API
-        url = "https://huggingface.co/api/models?sort=likes&direction=-1&limit=5"
+        url = "https://huggingface.co/api/models?sort=likes&direction=-1&limit=15"
         resp = requests.get(url, timeout=10)
         if resp.status_code == 200:
             models = resp.json()
@@ -155,27 +155,31 @@ def generate_smart_report(github_data, hn_data, hf_data):
     """
     
     system_prompt = """
-    你是一个专业的 AI 科技媒体编辑。请根据提供的原始数据，写一份高质量的《AI 每日简报》。
-    
-    要求如下：
-    1.  **语言风格：** 采用全中文口语化翻译，避免生硬的机器翻译痕迹，力求自然流畅。
-    2.  **内容筛选：** 从提供的列表中筛选出最值得关注的 5-8 项，并按照其热度或重要性进行降序排列。
-    3.  **项目分类：** 必须为每个项目明确标注其类型：
-        *   **[开源程序]（需部署）：** 指需要用户自行下载代码、配置环境并部署才能使用的项目。
-        *   **[在线工具]（开箱即用）：** 指可以直接通过网页访问或下载客户端即可使用的项目。
-        *   **[行业新闻]：** 指与 AI 领域相关的最新动态、研究成果、政策发布等信息。
-    4.  **结构统一：** 每个项目或新闻条目都应遵循以下格式（直接输出 HTML 格式）：
-        
-        <div class="item">
-            <h3><a href="URL">项目名称</a> <span class="tag">[类型]</span></h3>
-            <p><strong>一句话简介：</strong>...</p>
-            <p><strong>核心价值：</strong>...</p>
-            <p><strong>使用门槛：</strong>...</p>
-        </div>
+    你是一名 AI 行业分析师。请基于最近 24–48 小时内的公开信息变化，将内容整理为一份 **中文 AI 每日日报**，面向关注前沿工具与模型的开发者和创业者。
 
-    5.  **输出格式：** 
-        *   只输出 HTML 的 `<body>` 内部的核心内容（不需要 `<html>`, `<head>` 标签）。
-        *   使用简单的 CSS class (如 .item, .tag) 以便渲染。
+    **信息来源与板块结构**
+    请将提供的数据按以下三大板块重组：
+    1.  **GitHub 热门项目**（以近期 star 增长、趋势榜为主要参考）
+    2.  **Hacker News 热议**（以讨论热度、观点新颖性为主）
+    3.  **Hugging Face 热门模型**（以下载量、点赞、社区关注度为主）
+
+    **输出要求**
+    1.  **HTML 表格格式：** 每个板块请输出一个紧凑的 HTML 表格（`<table>`），模拟 Markdown 表格的视觉效果。
+    2.  **Top 5：** 每个表格仅保留最热门的 **前 5 项**。
+    3.  **表格列名固定为：**
+        *   **名称 / 链接** (Name/Link)
+        *   **分类** (Category: 工具 / 程序 / 新闻)
+        *   **大白话功能** (Function: 直接说它能解决什么问题，适合在什么场景用，避免说明书式表达)
+        *   **使用门槛** (Threshold: 如：直接访问 / 需编程基础 / 需 12G 显存 / 本地部署)
+    4.  **写作风格：** 翻译必须地道自然，禁止出现“这是一个用于……的框架”等机翻表达。优先保留对趋势判断有价值的信息，过滤噱头、重复项目和边缘新闻。
+
+    **总结要求**
+    在所有表格之后，用 **一句话** 点出本期 **「最不容错过」** 的一项。
+    *   推荐理由需明确说明：它为什么现在值得关注，以及可能带来的实际影响（效率、成本、能力边界等）。
+
+    **输出格式**
+    *   只输出 HTML 的 `<body>` 内部的核心内容（不需要 `<html>`, `<head>` 标签）。
+    *   使用简单的 CSS class 以便渲染（如 `table`, `th`, `td`）。
     """
     
     try:
@@ -187,7 +191,7 @@ def generate_smart_report(github_data, hn_data, hf_data):
                 {"role": "user", "content": f"这是今天的原始数据，请开始生成：\n{data_summary}"}
             ],
             temperature=0.7,
-            max_tokens=2000
+            max_tokens=2500
         )
         content = response.choices[0].message.content
         
@@ -196,14 +200,17 @@ def generate_smart_report(github_data, hn_data, hf_data):
         <html>
         <head>
             <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 650px; margin: 0 auto; padding: 20px; }}
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
                 h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 20px; }}
-                .item {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e9ecef; }}
-                .item h3 {{ margin-top: 0; color: #0366d6; }}
-                .item a {{ color: #0366d6; text-decoration: none; }}
-                .tag {{ background: #e1ecf4; color: #0366d6; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 10px; font-weight: normal; }}
-                p {{ margin: 8px 0; }}
-                strong {{ color: #495057; }}
+                h2 {{ margin-top: 30px; color: #0366d6; border-left: 5px solid #0366d6; padding-left: 10px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; }}
+                th, td {{ padding: 10px; border: 1px solid #e1e4e8; text-align: left; }}
+                th {{ background-color: #f6f8fa; font-weight: 600; }}
+                tr:nth-child(even) {{ background-color: #f8f9fa; }}
+                a {{ color: #0366d6; text-decoration: none; font-weight: bold; }}
+                .tag {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: normal; background-color: #e1ecf4; color: #0366d6; }}
+                .highlight-box {{ background-color: #fff8c5; border: 1px solid #d3c875; padding: 15px; border-radius: 6px; margin-top: 30px; }}
+                .highlight-title {{ font-weight: bold; color: #735c0f; margin-bottom: 5px; font-size: 1.1em; }}
                 .footer {{ text-align: center; font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }}
             </style>
         </head>
