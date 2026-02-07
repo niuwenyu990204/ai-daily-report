@@ -20,11 +20,32 @@ def fetch_github_trending():
     print("正在获取 GitHub 热门项目...")
     # 使用 GitHub Search API 查找最近 7 天创建的、包含 ai/llm 标签且按星数排序的项目
     date_str = (datetime.date.today() - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
-    query = f"topic:ai OR topic:llm OR topic:machine-learning created:>{date_str}"
-    url = f"https://api.github.com/search/repositories?q={query}&sort=stars&order=desc&per_page=10"
+    # 尝试最简单的 Query，先确保能通
+    # query = f"topic:ai OR topic:llm OR topic:machine-learning created:>{date_str}"
+    query = f"ai language:python created:>{date_str}"
     
+    url = "https://api.github.com/search/repositories"
+    params = {
+        "q": query,
+        "sort": "stars",
+        "order": "desc",
+        "per_page": 10
+    }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    # 如果有 GITHUB_TOKEN，添加到请求头中以提高速率限制
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
     try:
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        # 调试输出
+        print(f"Debug - Request URL: {resp.url}")
+        
         if resp.status_code == 200:
             items = resp.json().get("items", [])
             return [
@@ -37,6 +58,8 @@ def fetch_github_trending():
                 }
                 for item in items
             ]
+        else:
+            print(f"GitHub API 请求失败: {resp.status_code} - {resp.text}")
     except Exception as e:
         print(f"GitHub 获取失败: {e}")
     return []
