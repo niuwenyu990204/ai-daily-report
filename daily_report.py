@@ -137,6 +137,9 @@ def generate_smart_report(github_data, hn_data, hf_data):
         return generate_html(github_data, hn_data, hf_data)
         
     print("🤖 正在调用 LLM 进行智能总结与分析...")
+    # 打印调试信息（脱敏）
+    safe_key = LLM_API_KEY[:6] + "*" * 4 + LLM_API_KEY[-4:] if len(LLM_API_KEY) > 10 else "******"
+    print(f"Debug Info: BaseURL={LLM_BASE_URL}, Model={LLM_MODEL}, Key={safe_key}")
     
     # 构造 Prompt
     data_summary = f"""
@@ -217,7 +220,22 @@ def generate_smart_report(github_data, hn_data, hf_data):
     except Exception as e:
         print(f"❌ LLM 生成失败: {e}")
         print("🔄 回退到普通模板模式...")
-        return generate_html(github_data, hn_data, hf_data)
+        
+        # 将错误信息注入到普通模板中，方便用户在邮件中直接看到原因
+        error_html = f"""
+        <div style="background-color: #fee; border: 1px solid #f00; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #c00;">
+            <h3>⚠️ 智能日报生成失败</h3>
+            <p><strong>错误信息：</strong> {str(e)}</p>
+            <p><strong>Debug Info:</strong> BaseURL={LLM_BASE_URL}, Model={LLM_MODEL}, Key={safe_key}</p>
+            <p>请检查 GitHub Secrets 中的 LLM_API_KEY 配置。</p>
+        </div>
+        """
+        
+        # 生成普通报告
+        normal_html = generate_html(github_data, hn_data, hf_data)
+        
+        # 将错误信息插入到 body 开始处
+        return normal_html.replace("<body>", f"<body>{error_html}")
 
 def generate_html(github_data, hn_data, hf_data):
     """生成 HTML 邮件内容"""
