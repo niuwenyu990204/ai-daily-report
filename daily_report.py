@@ -2,6 +2,8 @@ import os
 import smtplib
 import datetime
 import requests
+import feedparser
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Template
@@ -129,12 +131,56 @@ def fetch_huggingface_trending():
         print(f"Hugging Face 获取失败: {e}")
         return []
 
+def fetch_rss_data(url, limit=5, hours=24):
+    """通用 RSS 获取函数，支持时间筛选"""
+    print(f"正在获取 RSS: {url} ...")
+    try:
+        feed = feedparser.parse(url)
+        items = []
+        current_time = time.time()
+        
+        for entry in feed.entries:
+            # 尝试获取发布时间
+            published_time = entry.get("published_parsed") or entry.get("updated_parsed")
+            if not published_time:
+                continue
+                
+            # 转换为时间戳
+            entry_time = time.mktime(published_time)
+            
+            # 筛选最近 N 小时
+            if current_time - entry_time < hours * 3600:
+                items.append({
+                    "title": entry.title,
+                    "link": entry.link,
+                    "published": time.strftime("%Y-%m-%d %H:%M", published_time),
+                    "summary": entry.get("summary", "")[:200] + "..." # 截断摘要
+                })
+                
+            if len(items) >= limit:
+                break
+                
+        return items
+    except Exception as e:
+        print(f"RSS 获取失败 ({url}): {e}")
+        return []
+
+def fetch_crypto_news():
+    """获取币圈新闻 (CoinDesk)"""
+    return fetch_rss_data("https://www.coindesk.com/arc/outboundfeeds/rss/", limit=10)
+
+def fetch_macro_news():
+    """获取宏观经济新闻 (CNBC)"""
+    # CNBC Finance
+    return fetch_rss_data("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", limit=10)
+
 from openai import OpenAI
 
-def generate_smart_report(github_data, hn_data, hf_data):
+def generate_smart_report(github_data, hn_data, hf_data, crypto_data, macro_data):
     """使用 LLM 生成智能总结报告"""
     if not LLM_API_KEY:
         print("⚠️ 未配置 LLM_API_KEY，回退到普通模板模式")
+        # 暂时只传递前三个参数给普通模板，避免报错
         return generate_html(github_data, hn_data, hf_data)
         
     print("🤖 正在调用 LLM 进行智能总结与分析...")
