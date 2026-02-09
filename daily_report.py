@@ -253,23 +253,22 @@ def generate_smart_report(github_data, hn_data, hf_data, crypto_data, macro_data
     5.  **宏观经济 (Macro Insights)**（筛选可能影响科技股或风险资产的全球经济/政策新闻）
 
     **输出要求**
-    1.  **HTML 表格格式：** 每个板块输出一个紧凑的 HTML 表格（`<table>`）。
-    2.  **Top 5：** 每个表格仅保留 **Top 3-5** 最具价值的条目。
-    3.  **表格列名固定为：**
-        *   **名称 / 链接** (Name/Link)
-        *   **分类** (Category: 工具/新闻/政策/行情)
-        *   **核心解读** (Analysis: 用大白话解释它为什么重要，对未来的潜在影响)
-        *   **关注指数** (Impact: ⭐⭐⭐ - ⭐⭐⭐⭐⭐)
+    1.  **HTML 布局格式：** 请放弃 `<table`>，采用 **“卡片式” (Card Layout)** 布局。每个条目输出为一个 `<div class="card">`。
+    2.  **Top 5：** 每个板块仅保留 **Top 3-5** 最具价值的条目。
+    3.  **卡片结构要求：**
+        *   **Header**: 包含 [名称/链接] (左侧) 和 [关注指数] (右侧, ⭐)。
+        *   **Sub-Header**: 包含 [分类标签]。
+        *   **Body**: [核心解读] (Analysis)，请用一段通俗易懂的文字描述，占满整行宽度，确保手机端阅读舒适。
     4.  **写作风格：** 专业、犀利、简练。拒绝通稿式废话，直击要害。
 
     **总结要求**
-    在所有表格之后，增加 **「今日风向标」** 栏目：
-    *   **一句话总结：** 用一句话概括今天科技与金融市场的整体情绪（如：AI 应用层爆发，但宏观政策收紧导致币圈承压）。
+    在所有板块之后，增加 **「今日风向标」** 栏目：
+    *   **一句话总结：** 用一句话概括今天科技与金融市场的整体情绪。
     *   **最不容错过：** 挑选 **唯一一项** 今日最重要的信息，并给出深度推荐理由。
 
     **输出格式**
     *   只输出 HTML 的 `<body>` 内部的核心内容。
-    *   使用简单的 CSS class 以便渲染（如 `table`, `th`, `td`）。
+    *   使用如下 CSS class：`card`, `card-header`, `card-title`, `card-meta`, `card-body`, `tag`。
     """
     
     try:
@@ -289,19 +288,32 @@ def generate_smart_report(github_data, hn_data, hf_data, crypto_data, macro_data
         full_html = f"""
         <html>
         <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }}
-                h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 20px; }}
-                h2 {{ margin-top: 30px; color: #0366d6; border-left: 5px solid #0366d6; padding-left: 10px; font-size: 1.4em; }}
-                table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; }}
-                th, td {{ padding: 12px; border: 1px solid #e1e4e8; text-align: left; vertical-align: top; }}
-                th {{ background-color: #f6f8fa; font-weight: 600; color: #24292e; }}
-                tr:nth-child(even) {{ background-color: #f8f9fa; }}
-                a {{ color: #0366d6; text-decoration: none; font-weight: bold; }}
-                .tag {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: normal; background-color: #e1ecf4; color: #0366d6; }}
-                .highlight-box {{ background-color: #fff8c5; border: 1px solid #d3c875; padding: 20px; border-radius: 6px; margin-top: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }}
-                .highlight-title {{ font-weight: bold; color: #735c0f; margin-bottom: 10px; font-size: 1.2em; border-bottom: 1px solid #eadd86; padding-bottom: 5px; }}
-                .footer {{ text-align: center; font-size: 0.8em; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }}
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f6f8fa; }}
+                h1 {{ text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 15px; font-size: 1.5em; }}
+                h2 {{ margin-top: 25px; color: #0366d6; border-left: 4px solid #0366d6; padding-left: 10px; font-size: 1.2em; margin-bottom: 15px; }}
+                
+                /* Card Style */
+                .card {{ background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
+                .card-header {{ display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; gap: 5px; }}
+                .card-title {{ font-size: 1.1em; font-weight: bold; color: #0366d6; text-decoration: none; }}
+                .card-meta {{ font-size: 0.9em; color: #666; }}
+                .card-body {{ font-size: 0.95em; color: #444; line-height: 1.6; margin-top: 8px; }}
+                
+                .tag {{ display: inline-block; padding: 2px 8px; border-radius: 12px; background-color: #f1f8ff; color: #0366d6; font-size: 0.8em; margin-bottom: 5px; }}
+                
+                .highlight-box {{ background-color: #fff8c5; border: 1px solid #d3c875; padding: 15px; border-radius: 6px; margin-top: 30px; }}
+                .highlight-title {{ font-weight: bold; color: #735c0f; margin-bottom: 8px; border-bottom: 1px solid #eadd86; padding-bottom: 4px; }}
+                
+                .footer {{ text-align: center; font-size: 0.8em; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }}
+                
+                /* Mobile Optimization */
+                @media only screen and (max-width: 480px) {{
+                    body {{ padding: 10px; }}
+                    .card {{ padding: 12px; }}
+                    h1 {{ font-size: 1.3em; }}
+                }}
             </style>
         </head>
         <body>
@@ -340,88 +352,112 @@ def generate_html(github_data, hn_data, hf_data, crypto_data=None, macro_data=No
     template_str = """
     <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            h2 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
-            .item { margin-bottom: 15px; }
-            .item a { color: #0366d6; text-decoration: none; font-weight: bold; }
-            .meta { font-size: 0.85em; color: #666; }
-            .footer { margin-top: 40px; font-size: 0.8em; color: #999; text-align: center; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 15px; background-color: #f6f8fa; }
+            h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 15px; font-size: 1.5em; }
+            h2 { margin-top: 25px; color: #0366d6; border-left: 4px solid #0366d6; padding-left: 10px; font-size: 1.2em; margin-bottom: 15px; }
+            
+            /* Card Style */
+            .card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; gap: 5px; }
+            .card-title { font-size: 1.1em; font-weight: bold; color: #0366d6; text-decoration: none; }
+            .card-meta { font-size: 0.9em; color: #666; }
+            .card-body { font-size: 0.95em; color: #444; line-height: 1.6; margin-top: 8px; }
+            
+            .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; background-color: #f1f8ff; color: #0366d6; font-size: 0.8em; margin-bottom: 5px; }
+            
+            .footer { text-align: center; font-size: 0.8em; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+            
+            /* Mobile Optimization */
+            @media only screen and (max-width: 480px) {
+                body { padding: 10px; }
+                .card { padding: 12px; }
+                h1 { font-size: 1.3em; }
+            }
         </style>
     </head>
     <body>
-        <div class="container">
-            <h1>🤖 AI & 金融每日简报 ({{ date }})</h1>
-            
-            <h2>🔥 GitHub 本周热门 AI 项目</h2>
-            {% if github_data %}
-                {% for item in github_data %}
-                <div class="item">
-                    <a href="{{ item.url }}">{{ item.name }}</a> 
-                    <span class="meta">⭐ {{ item.stars }} | {{ item.language }}</span>
-                    <div style="font-size: 0.9em;">{{ item.desc }}</div>
+        <h1>🤖 AI & 金融每日简报 ({{ date }})</h1>
+        
+        <h2>🔥 GitHub 本周热门 AI 项目</h2>
+        {% if github_data %}
+            {% for item in github_data %}
+            <div class="card">
+                <div class="card-header">
+                    <a href="{{ item.url }}" class="card-title">{{ item.name }}</a>
+                    <span class="card-meta">⭐ {{ item.stars }}</span>
                 </div>
-                {% endfor %}
-            {% else %}
-                <p>获取失败或无数据。</p>
-            {% endif %}
-
-            <h2>📰 Hacker News 热议</h2>
-            {% if hn_data %}
-                {% for item in hn_data %}
-                <div class="item">
-                    <a href="{{ item.url }}">{{ item.title }}</a>
-                    <div class="meta">⬆️ {{ item.score }} | 💬 {{ item.comments }} comments</div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>暂无相关 AI 热门讨论。</p>
-            {% endif %}
-
-            <h2>🤗 Hugging Face 热门模型</h2>
-            {% if hf_data %}
-                {% for item in hf_data %}
-                <div class="item">
-                    <a href="{{ item.url }}">{{ item.name }}</a>
-                    <span class="meta">❤️ {{ item.likes }}</span>
-                    <div class="meta">Tags: {{ item.tags | join(', ') }}</div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>获取失败或无数据。</p>
-            {% endif %}
-
-            <h2>💰 币圈动态 (Crypto Watch)</h2>
-            {% if crypto_data %}
-                {% for item in crypto_data %}
-                <div class="item">
-                    <a href="{{ item.link }}">{{ item.title }}</a>
-                    <div class="meta">🕒 {{ item.published }}</div>
-                    <div style="font-size: 0.9em; color: #555;">{{ item.summary }}</div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>暂无数据。</p>
-            {% endif %}
-
-            <h2>🌍 宏观经济 (Macro Insights)</h2>
-            {% if macro_data %}
-                {% for item in macro_data %}
-                <div class="item">
-                    <a href="{{ item.link }}">{{ item.title }}</a>
-                    <div class="meta">🕒 {{ item.published }}</div>
-                    <div style="font-size: 0.9em; color: #555;">{{ item.summary }}</div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>暂无数据。</p>
-            {% endif %}
-
-            <div class="footer">
-                此报告由 GitHub Actions 自动生成。<br>
-                {{ date }}
+                <div class="tag">{{ item.language }}</div>
+                <div class="card-body">{{ item.desc }}</div>
             </div>
+            {% endfor %}
+        {% else %}
+            <p>获取失败或无数据。</p>
+        {% endif %}
+
+        <h2>📰 Hacker News 热议</h2>
+        {% if hn_data %}
+            {% for item in hn_data %}
+            <div class="card">
+                <div class="card-header">
+                    <a href="{{ item.url }}" class="card-title">{{ item.title }}</a>
+                </div>
+                <div class="card-meta">⬆️ {{ item.score }} | 💬 {{ item.comments }} comments</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>暂无相关 AI 热门讨论。</p>
+        {% endif %}
+
+        <h2>🤗 Hugging Face 热门模型</h2>
+        {% if hf_data %}
+            {% for item in hf_data %}
+            <div class="card">
+                <div class="card-header">
+                    <a href="{{ item.url }}" class="card-title">{{ item.name }}</a>
+                    <span class="card-meta">❤️ {{ item.likes }}</span>
+                </div>
+                <div class="tag">Tags: {{ item.tags | join(', ') }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>获取失败或无数据。</p>
+        {% endif %}
+
+        <h2>💰 币圈动态 (Crypto Watch)</h2>
+        {% if crypto_data %}
+            {% for item in crypto_data %}
+            <div class="card">
+                <div class="card-header">
+                    <a href="{{ item.link }}" class="card-title">{{ item.title }}</a>
+                    <span class="card-meta">{{ item.published }}</span>
+                </div>
+                <div class="card-body">{{ item.summary }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>暂无数据。</p>
+        {% endif %}
+
+        <h2>🌍 宏观经济 (Macro Insights)</h2>
+        {% if macro_data %}
+            {% for item in macro_data %}
+            <div class="card">
+                <div class="card-header">
+                    <a href="{{ item.link }}" class="card-title">{{ item.title }}</a>
+                    <span class="card-meta">{{ item.published }}</span>
+                </div>
+                <div class="card-body">{{ item.summary }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>暂无数据。</p>
+        {% endif %}
+
+        <div class="footer">
+            此报告由 GitHub Actions 自动生成。<br>
+            {{ date }}
         </div>
     </body>
     </html>
