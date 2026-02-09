@@ -186,9 +186,27 @@ def fetch_crypto_news():
     return fetch_rss_data("https://www.coindesk.com/arc/outboundfeeds/rss/", limit=10)
 
 def fetch_macro_news():
-    """获取宏观经济新闻 (CNBC)"""
-    # CNBC Finance
-    return fetch_rss_data("https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", limit=10)
+    """获取宏观经济新闻 (CNBC + Investing.com)"""
+    # 增加更多数据源并延长到 48 小时以覆盖周末
+    urls = [
+        "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", # CNBC Finance
+        "https://www.investing.com/rss/news_1.rss", # Investing.com General
+        "https://www.investing.com/rss/news_25.rss" # Investing.com Economic Indicators
+    ]
+    
+    all_items = []
+    seen_links = set()
+    
+    for url in urls:
+        items = fetch_rss_data(url, limit=5, hours=48)
+        for item in items:
+            if item["link"] not in seen_links:
+                all_items.append(item)
+                seen_links.add(item["link"])
+    
+    # 按时间倒序排序
+    all_items.sort(key=lambda x: x["published"], reverse=True)
+    return all_items[:10]
 
 from openai import OpenAI
 
