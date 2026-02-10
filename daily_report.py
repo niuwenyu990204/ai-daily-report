@@ -235,26 +235,27 @@ class IndicatorMonitor:
             print(f"Error fetching Fear & Greed: {e}")
 
     def fetch_derivatives_data(self):
-        """获取资金费率和持仓量 (Source: Bybit)"""
-        print("正在获取衍生品数据 (Bybit)...")
+        """获取资金费率和持仓量 (Source: Bybit + Binance)"""
+        print("正在获取衍生品数据 (Bybit + Binance)...")
         try:
             import curl_cffi.requests
-            # Bybit V5 Market Ticker
-            url = "https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT"
             
-            r = curl_cffi.requests.get(
-                url, 
+            # 1. Bybit V5 Market Ticker
+            url_bybit = "https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT"
+            r_bybit = curl_cffi.requests.get(
+                url_bybit, 
                 impersonate="chrome120", 
                 timeout=10, 
                 verify=False
             )
             
-            if r.status_code == 200:
-                data = r.json()
+            bybit_oi = 0
+            if r_bybit.status_code == 200:
+                data = r_bybit.json()
                 if 'result' in data and 'list' in data['result'] and len(data['result']['list']) > 0:
                     item = data['result']['list'][0]
                     
-                    # Funding Rate
+                    # Funding Rate (Use Bybit as Ref)
                     fr_raw = float(item.get('fundingRate', 0))
                     fr_percent = fr_raw * 100
                     self.data_summary['FundingRate'] = fr_percent
@@ -264,17 +265,35 @@ class IndicatorMonitor:
                     if fr_percent > 0.03: status = "🔴 过热"
                     elif fr_percent < -0.005: status = "🔵 看空"
                     self.data_summary['FundingRate_Status'] = status
-                    print(f"资金费率: {fr_percent:.4f}% ({status})")
+                    print(f"资金费率 (Bybit): {fr_percent:.4f}% ({status})")
                     
-                    # Open Interest
-                    oi_val = float(item.get('openInterestValue', 0))
-                    oi_billion = oi_val / 1e9
-                    self.data_summary['OpenInterest'] = oi_billion
-                    print(f"持仓量: ${oi_billion:.2f}B")
-                else:
-                    print("Bybit data format unexpected")
-            else:
-                print(f"Bybit API Error: {r.status_code}")
+                    # Bybit OI
+                    bybit_oi = float(item.get('openInterestValue', 0))
+            
+            # 2. Binance OI (Add Binance for better coverage)
+            # Binance returns OI in BTC quantity usually via this endpoint, need to multiply by price
+            # OR better, use openInterest endpoint which returns quantity
+            # We need price to convert to USD
+            binance_oi_usd = 0
+            try:
+                # Get Price First
+                r_price = requests.get("https://fapi.binance.com/fapi/v1/ticker/price?symbol=BTCUSDT", timeout=5)
+                price = float(r_price.json()['price'])
+                
+                # Get OI Quantity
+                r_oi = requests.get("https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT", timeout=5)
+                oi_qty = float(r_oi.json()['openInterest'])
+                
+                binance_oi_usd = oi_qty * price
+            except Exception as e:
+                print(f"Binance OI fetch failed: {e}")
+
+            # Total OI (Binance + Bybit covers ~60% market)
+            total_oi = bybit_oi + binance_oi_usd
+            oi_billion = total_oi / 1e9
+            
+            self.data_summary['OpenInterest'] = oi_billion
+            print(f"持仓量 (Binance+Bybit): ${oi_billion:.2f}B")
                 
         except Exception as e:
             print(f"Error fetching Derivatives data: {e}")
