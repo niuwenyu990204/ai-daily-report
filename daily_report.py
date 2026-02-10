@@ -88,6 +88,25 @@ class IndicatorMonitor:
         except Exception as e:
             print(f"Error saving history: {e}")
 
+    def get_history(self, key):
+        """获取历史数据"""
+        try:
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r') as f:
+                    history = json.load(f)
+                    # If key exists and is a list (historical series), return last value
+                    # If key doesn't exist, return None
+                    if key in history:
+                        data = history[key]
+                        if isinstance(data, list) and len(data) > 0:
+                            # Return the second to last value if it exists (since we might have just updated it? No, update happens after)
+                            # Actually, we want the value from YESTERDAY.
+                            # But here we just want "previous recorded value"
+                            return data[-1]['value']
+            return None
+        except Exception:
+            return None
+
     def update_history(self, key, value):
         """更新特定指标的历史数据 (按日期)"""
         today = datetime.date.today().strftime("%Y-%m-%d")
@@ -307,15 +326,37 @@ class IndicatorMonitor:
             if r.status_code == 200:
                 data = r.json()
                 total_mcap = 0
+                usdt_cap = 0
+                usdc_cap = 0
+                
                 for coin in data['peggedAssets']:
                     if isinstance(coin, dict) and 'circulating' in coin:
-                         total_mcap += coin['circulating'].get('peggedUSD', 0)
+                         mcap = coin['circulating'].get('peggedUSD', 0)
+                         total_mcap += mcap
+                         
+                         symbol = coin.get('symbol', '')
+                         if symbol == 'USDT':
+                             usdt_cap = mcap
+                         elif symbol == 'USDC':
+                             usdc_cap = mcap
                 
                 # 转换为 Billion
                 mcap_b = total_mcap / 1e9
                 self.data_summary["Stablecoin_Mcap"] = mcap_b
                 self.update_history('stablecoins', mcap_b)
                 print(f"稳定币市值: ${mcap_b:.2f}B")
+                
+                # USDC/USDT Ratio
+                if usdt_cap > 0:
+                    ratio = usdc_cap / usdt_cap
+                    self.data_summary["USDC_USDT_Ratio"] = ratio
+                    # Get previous ratio for trend
+                    prev_ratio = self.get_history('usdc_usdt_ratio')
+                    self.data_summary["USDC_USDT_Ratio_Prev"] = prev_ratio
+                    self.update_history('usdc_usdt_ratio', ratio)
+                    
+                    print(f"USDC/USDT Ratio: {ratio:.4f} (Prev: {prev_ratio})")
+                    
         except Exception as e:
             print(f"DefiLlama 获取失败: {e}")
 
@@ -606,10 +647,11 @@ class DailyReport:
                          6. 持仓量 (OI)
                          7. 巨鲸 (>1k BTC)
                          8. 稳定币市值
-                         9. 10年期美债
-                         10. 美元指数 (DXY)
-                         11. 黄金 (Gold)
-                         12. 标普500 (SPX)
+                         9. USDC/USDT Ratio (显示数值，根据 trend-up/down 显示箭头。上升=合规资金流入/USDT流出，下降=离岸资金活跃)
+                         10. 10年期美债
+                         11. 美元指数 (DXY)
+                         12. 黄金 (Gold)
+                         13. 标普500 (SPX)
                     -->
                 </div>
             </div>
