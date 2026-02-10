@@ -2,3 +2,9 @@ requests
 jinja2
 openai
 feedparser
+python-dotenv
+yfinance
+matplotlib
+pandas
+beautifulsoup4
+curl_cffi
