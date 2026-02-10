@@ -345,38 +345,43 @@ def fetch_github_trending():
     return []
 
 def fetch_hacker_news_ai():
-    """获取 HN Show/New/Top 中关于 AI 的讨论"""
-    print("正在获取 Hacker News AI 话题 (Show/New/Top)...")
+    """获取 HN TopStories 中关于 AI 的讨论 (Filtered by Score)"""
+    print("正在获取 Hacker News AI 话题 (Top/Best)...")
     try:
         session = requests.Session()
-        # Scan Show, New, and Top (limit 30 each to be fast)
+        # 仅扫描 TopStories 和 BestStories，确保热度
+        # NewStories 会包含大量 0-2 分的新帖，故移除
         endpoints = [
-            "https://hacker-news.firebaseio.com/v0/showstories.json",
-            "https://hacker-news.firebaseio.com/v0/newstories.json",
-            "https://hacker-news.firebaseio.com/v0/topstories.json"
+            "https://hacker-news.firebaseio.com/v0/topstories.json",
+            "https://hacker-news.firebaseio.com/v0/beststories.json"
         ]
         
-        candidates = set()
+        candidates = []
         for ep in endpoints:
             try:
-                ids = session.get(ep, timeout=5).json()[:30]
-                candidates.update(ids)
+                # 获取前 50 条，确保覆盖面
+                ids = session.get(ep, timeout=5).json()[:50]
+                candidates.extend(ids)
             except: pass
             
+        # 去重
+        candidates = list(set(candidates))
+            
         ai_stories = []
-        keywords = ["AI", "GPT", "LLM", "Diffusion", "Model", "Neural", "Transformer", "Agent", "RAG"]
+        keywords = ["AI", "GPT", "LLM", "Diffusion", "Model", "Neural", "Transformer", "Agent", "RAG", "DeepSeek", "OpenAI"]
         
-        # Sort by ID desc (newest first) or just process
-        # Ideally we fetch details
-        for hid in list(candidates)[:50]: # limit total checks
+        for hid in candidates[:80]: # 限制请求次数
             try:
                 item = session.get(f"https://hacker-news.firebaseio.com/v0/item/{hid}.json", timeout=3).json()
                 if not item or "title" not in item: continue
                 
+                # 过滤掉低热度帖子 (Score < 50)
+                score = item.get("score", 0)
+                if score < 50:
+                    continue
+
                 title = item["title"]
                 if any(k.lower() in title.lower() for k in keywords):
-                    # Check if relevant (score > 5 or fresh)
-                    score = item.get("score", 0)
                     ai_stories.append({
                         "title": title,
                         "url": item.get("url", f"https://news.ycombinator.com/item?id={hid}"),
