@@ -711,7 +711,7 @@ class DailyReport:
         # 主收件人 (Env)
         main_receiver = MAIL_RECEIVER
         # 抄送收件人 (CC)
-        cc_receivers = ["tangjx1004@163.com", "251400187@qq.com"]
+        cc_receivers = ["tangjx1004@163.com", "251400187@qq.com", "120750300@qq.com"]
         
         # 所有收件人 (SMTP 传输需要)
         all_receivers = [main_receiver] + cc_receivers
